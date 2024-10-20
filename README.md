@@ -1,205 +1,388 @@
- Project Overview
-This project implements a 3-tier Rule Engine application that uses an Abstract Syntax Tree (AST) to represent conditional rules. Users can create, combine, and evaluate rules based on attributes like age, department, income, spend, etc. The system allows dynamic rule creation and evaluation, with rules stored and managed in a MongoDB database.
 
-2. Features
-Dynamic creation, combination, and modification of rules.
-Uses an Abstract Syntax Tree (AST) to represent rules.
-Rules can be evaluated against user data (e.g., age, department, income).
-API for creating and combining rules.
-Frontend UI built with React for rule management.
-Backend built with Node.js and Express.
-Data storage in MongoDB.
-3. Tech Stack
-Frontend: React.js
-Backend: Node.js, Express.js
-Database: MongoDB
-Language: JavaScript (ES6+)
-Containerization: Docker (optional)
-4. Prerequisites
-Before you can set up the project, make sure you have the following installed:
 
-Node.js (v14+)
-npm (Node Package Manager)
-MongoDB (v4.4+ or MongoDB Atlas for cloud hosting)
-Docker (if you want to use Docker containers)
-5. Installation Instructions
-Step 1: Clone the Repository
-bash
-Copy code
-git clone https://github.com/your-username/rule-engine-ast.git
-cd rule-engine-ast
-Step 2: Install Dependencies
-Backend:
+### **Overview of the Rule Engine**
 
-bash
-Copy code
-cd backend
-npm install
-Frontend:
+The rule engine will:
+- Allow users to create dynamic rules based on attributes like age, income, and spend.
+- Parse these rules into an AST for efficient processing.
+- Evaluate user data against these rules to determine eligibility.
+  
+### **Steps to Build the Application**
 
-bash
-Copy code
-cd ../frontend
-npm install
-Step 3: Set Up Environment Variables
-For the backend, create a .env file in the backend directory:
+---
 
-bash
-Copy code
-MONGO_URI=mongodb://localhost:27017/rule_engine
-PORT=5000
-Note: If you're using MongoDB Atlas for the database, replace MONGO_URI with your Atlas connection string.
+### **1. Define the Problem**
 
-Step 4: Start MongoDB
-If you have MongoDB installed locally:
+- The user should be able to define eligibility rules, such as:
+  - `age > 30 AND income > 50000`
+  - `spend <= 1000 OR (department == 'Sales' AND age < 50)`
 
-bash
-Copy code
-mongod --dbpath /your/local/dbpath
-If you're using Docker for MongoDB:
+- The rule engine should evaluate these rules based on user data attributes:
+  - **User data** could include fields like `age`, `income`, `spend`, and `department`.
 
-bash
-Copy code
-docker run -d -p 27017:27017 --name rule-engine-mongo mongo
-Step 5: Start the Backend Server
-bash
-Copy code
-cd backend
-npm start
-The backend will be running on http://localhost:5000.
+- The system should allow modification, combination, and removal of rules dynamically.
 
-Step 6: Start the Frontend
-In a new terminal window:
+---
 
-bash
-Copy code
-cd frontend
-npm start
-The frontend will be running on http://localhost:3000.
+### **2. Project Setup**
 
-6. API Endpoints
-1. Create Rule (POST)
-URL: /api/rules/create_rule
-Description: Creates an AST for a given rule string.
-Request Body:
-json
-Copy code
+- **Backend**: Node.js/Express.js
+- **Frontend**: React.js (optional for user interface)
+- **Database**: MongoDB (for storing rules and user data)
+
+1. **Initialize the Project**:
+   - Initialize a new project using Node.js:
+     ```bash
+     mkdir rule-engine-app
+     cd rule-engine-app
+     npm init -y
+     ```
+
+2. **Install Dependencies**:
+   ```bash
+   npm install express body-parser mongoose
+   ```
+
+   For AST handling, you can use **jsep** or other libraries that help parse expressions:
+   ```bash
+   npm install jsep
+   ```
+
+---
+
+### **3. Design the Rule Structure**
+
+We will store user-defined rules as logical expressions and use an AST to parse and evaluate them.
+
+#### **Example Rule**:
+- Rule: `age > 30 AND income > 50000`
+- Represented as a string: `"age > 30 && income > 50000"`
+
+This will be parsed into an AST like:
+```json
 {
-  "rule": "age > 30 AND department = 'Sales'"
-}
-Response:
-json
-Copy code
-{
-  "_id": "60c728b1b3db52001f6e8f15",
-  "type": "operand",
-  "left": null,
-  "right": null,
-  "value": "age > 30 AND department = 'Sales'"
-}
-2. Combine Rules (POST)
-URL: /api/rules/combine_rules
-Description: Combines multiple rules into a single AST.
-Request Body:
-json
-Copy code
-{
-  "rules": [
-    "age > 30 AND department = 'Sales'",
-    "age < 25 AND department = 'Marketing'"
-  ]
-}
-Response: Combined AST root node.
-3. Evaluate Rule (POST)
-URL: /api/rules/evaluate_rule
-Description: Evaluates the rule AST against user data.
-Request Body:
-json
-Copy code
-{
-  "ruleAST": { /* AST object */ },
-  "data": {
-    "age": 35,
-    "department": "Sales",
-    "salary": 60000,
-    "experience": 3
+  "type": "LogicalExpression",
+  "operator": "&&",
+  "left": {
+    "type": "BinaryExpression",
+    "operator": ">",
+    "left": { "type": "Identifier", "name": "age" },
+    "right": { "type": "Literal", "value": 30 }
+  },
+  "right": {
+    "type": "BinaryExpression",
+    "operator": ">",
+    "left": { "type": "Identifier", "name": "income" },
+    "right": { "type": "Literal", "value": 50000 }
   }
 }
-Response: true or false.
-7. Design Choices
-1. Data Structure for AST
-We represent the AST as a tree of Node objects with the following fields:
+```
 
-type: A string indicating whether the node is an operator (AND, OR) or an operand (a condition).
-left: The left child node (for operators).
-right: The right child node (for operators).
-value: The value for operand nodes (conditions like age > 30).
-This flexible design allows us to dynamically create, combine, and modify rules.
+---
 
-2. Database Choice: MongoDB
-We chose MongoDB because it provides a flexible schema, making it easy to store AST structures. Its document-based format allows easy retrieval and manipulation of nested structures, like trees.
+### **4. Define AST Parsing and Evaluation**
 
-3. Use of Express for API
-Express provides a minimalistic framework for building the backend API, making it easy to define endpoints for rule management.
+We will use the **jsep** library to parse expressions into AST and then evaluate them against user data.
 
-4. Frontend UI with React
-React provides a dynamic user interface for creating, combining, and managing rules. It offers component-based design, which makes it easier to handle forms and integrate the API.
+#### **Example Code to Parse Rules**:
 
-5. Optional Docker Support
-To ensure the application is portable and easy to set up, we have added support for Docker. This allows users to set up both the MongoDB and Node.js server as containers, ensuring consistency across different environments.
+1. **AST Parser**:
+   ```javascript
+   const jsep = require('jsep');
 
-8. Dependencies
-Backend (Node.js):
-express: Web framework for the backend API.
-mongoose: ODM for MongoDB.
-body-parser: Middleware for parsing request bodies.
-cors: Middleware for handling cross-origin requests.
-Frontend (React):
-axios: For making HTTP requests from React.
-react: The core React library.
-react-dom: For rendering React components.
-9. Testing Instructions
-We recommend using Postman or cURL to test the backend APIs. Here are sample cURL commands to test:
+   // Parse rule into AST
+   const parseRule = (rule) => {
+       return jsep(rule);  // Returns the AST
+   };
+   
+   // Example usage
+   const rule = "age > 30 && income > 50000";
+   const ast = parseRule(rule);
+   console.log(JSON.stringify(ast, null, 2));
+   ```
 
-Create Rule:
+2. **Evaluate AST**:
+   Create a function to evaluate the parsed AST using user data:
+   ```javascript
+   const evaluateAST = (node, userData) => {
+       switch (node.type) {
+           case 'BinaryExpression':
+               const leftValue = evaluateAST(node.left, userData);
+               const rightValue = evaluateAST(node.right, userData);
+               switch (node.operator) {
+                   case '>': return leftValue > rightValue;
+                   case '<': return leftValue < rightValue;
+                   case '==': return leftValue == rightValue;
+                   case '!=': return leftValue != rightValue;
+                   default: throw new Error(`Unknown operator: ${node.operator}`);
+               }
 
-curl -X POST http://localhost:5000/api/rules/create_rule -H "Content-Type: application/json" -d '{"rule": "age > 30 AND department = Sales"}'
-Combine Rules:
+           case 'LogicalExpression':
+               const left = evaluateAST(node.left, userData);
+               const right = evaluateAST(node.right, userData);
+               switch (node.operator) {
+                   case '&&': return left && right;
+                   case '||': return left || right;
+                   default: throw new Error(`Unknown operator: ${node.operator}`);
+               }
 
+           case 'Identifier':
+               return userData[node.name];
 
-curl -X POST http://localhost:5000/api/rules/combine_rules -H "Content-Type: application/json" -d '{"rules": ["age > 30 AND department = Sales", "age < 25 AND department = Marketing"]}'
-Evaluate Rule:
+           case 'Literal':
+               return node.value;
 
+           default:
+               throw new Error(`Unknown node type: ${node.type}`);
+       }
+   };
 
-curl -X POST http://localhost:5000/api/rules/evaluate_rule -H "Content-Type: application/json" -d '{"ruleAST": { /* AST object */ }, "data": {"age": 35, "department": "Sales"}}'
-10. Running with Docker
-You can also run the application with Docker. Follow these steps:
+   // Example evaluation
+   const userData = { age: 35,
 
-1. Backend Docker Setup
-Create a Dockerfile for the backend in the backend folder:
+Here’s a **comprehensive README** for your **Rule Engine Application using AST**:
 
-dockerfile
-Copy code
-FROM node:14
+---
 
+# Rule Engine Application
+
+This is a **Rule Engine Application** that uses **Abstract Syntax Trees (AST)** to evaluate user-defined rules for determining eligibility based on attributes like age, income, spend, and department. Users can define dynamic rules, which are parsed into an AST and evaluated against user data.
+
+## Table of Contents
+- [Overview](#overview)
+- [Features](#features)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Project Structure](#project-structure)
+- [Usage](#usage)
+- [Environment Variables](#environment-variables)
+- [Design Choices](#design-choices)
+- [API Endpoints](#api-endpoints)
+- [Docker Setup](#docker-setup)
+- [Testing](#testing)
+- [License](#license)
+
+---
+
+## Overview
+
+This rule engine allows for the dynamic creation, modification, and evaluation of rules. These rules are parsed using an Abstract Syntax Tree (AST) and evaluated in real-time against user data, determining eligibility based on predefined conditions.
+
+For example, a rule like:
+```
+age > 30 AND income > 50000
+```
+will be parsed into an AST and evaluated for users based on their `age` and `income` data.
+
+---
+
+## Features
+
+- Dynamic rule creation based on user attributes (age, income, spend, etc.).
+- AST-based parsing of rules using the **jsep** library.
+- Real-time rule evaluation against user data.
+- Support for logical expressions (`&&`, `||`) and comparison operators (`>`, `<`, `==`, `!=`).
+- Docker support for easy setup and scaling.
+
+---
+
+## Prerequisites
+
+Before starting, make sure you have the following installed on your machine:
+
+- **Node.js** (v14 or later)
+- **MongoDB** (v6.0 or later)
+- **Docker** (optional for containerized deployment)
+
+---
+
+## Installation
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/yourusername/rule-engine-app.git
+cd rule-engine-app
+```
+
+### 2. Install Backend Dependencies
+
+```bash
+cd backend
+npm install
+```
+
+### 3. Install Frontend Dependencies (Optional if you have a frontend)
+
+```bash
+cd frontend
+npm install
+```
+
+---
+
+## Project Structure
+
+```
+rule-engine-app/
+├── backend/
+│   ├── server.js         # Express server
+│   ├── models/           # Mongoose models for User and Rule data
+│   ├── routes/           # API routes for managing rules and user data
+│   └── services/         # AST parsing and rule evaluation logic
+└── frontend/             # (Optional) React frontend to manage rules and visualize results
+```
+
+---
+
+## Usage
+
+### 1. Create `.env` File
+
+In the `backend` directory, create a `.env` file to define the environment variables:
+
+```bash
+MONGO_URI=mongodb://localhost:27017/ruleEngineDB
+PORT=5000
+```
+
+### 2. Start Backend
+
+```bash
+cd backend
+npm start
+```
+
+The backend server will be running at `http://localhost:5000`.
+
+### 3. Start Frontend (Optional)
+
+```bash
+cd frontend
+npm start
+```
+
+The frontend will be running at `http://localhost:3000`.
+
+---
+
+## Environment Variables
+
+- `MONGO_URI`: MongoDB connection string.
+- `PORT`: Port on which the backend server will run.
+
+Make sure to update these values in the `.env` file as needed.
+
+---
+
+## Design Choices
+
+- **Abstract Syntax Tree (AST)**: We chose to use AST to efficiently represent and evaluate complex user-defined rules. AST allows breaking down expressions into logical structures (nodes) that can be easily evaluated against user data.
+
+- **MERN Stack**: Using MongoDB for persistent rule storage and Express.js for the backend. Optional React frontend for UI interaction.
+
+- **Rule Parsing**: The rules are stored as strings and parsed using **jsep** into an AST, which makes it easier to handle complex nested expressions with logical operators (`&&`, `||`).
+
+---
+
+## API Endpoints
+
+### 1. **POST /api/rules/create**
+- **Description**: Create a new rule.
+- **Body**:
+  ```json
+  {
+    "rule": "age > 30 && income > 50000"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "message": "Rule created successfully",
+    "ruleId": "606..."
+  }
+  ```
+
+### 2. **POST /api/rules/evaluate**
+- **Description**: Evaluate a rule for a user.
+- **Body**:
+  ```json
+  {
+    "ruleId": "606...",
+    "userData": {
+      "age": 35,
+      "income": 60000,
+      "spend": 2000,
+      "department": "Sales"
+    }
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "isEligible": true
+  }
+  ```
+
+### 3. **GET /api/rules**
+- **Description**: Fetch all rules.
+
+---
+
+## Docker Setup
+
+To simplify deployment, you can run the application using Docker.
+
+### 1. Dockerize Backend
+
+Create a `Dockerfile` in the backend directory:
+
+```Dockerfile
+FROM node:14-alpine
 WORKDIR /app
-
 COPY package*.json ./
 RUN npm install
-
 COPY . .
-
 EXPOSE 5000
 CMD ["npm", "start"]
-2. MongoDB Docker Setup
-You can spin up a MongoDB instance using Docker:
+```
 
+### 2. Build Docker Image
 
-
-docker run -d -p 27017:27017 --name rule-engine-mongo mongo
-3. Running Containers
-Build and run the backend:
-
-
+```bash
+cd backend
 docker build -t rule-engine-backend .
-docker run -p 5000:5000 rule-engine-backend
+```
+
+### 3. Run Docker Container
+
+```bash
+docker run -p 5000:5000 --env-file .env --name rule-engine-backend -d rule-engine-backend
+```
+
+### 4. Run MongoDB with Docker
+
+```bash
+docker run --name rule-engine-db -p 27017:27017 -d mongo
+```
+
+You can now access the backend at `http://localhost:5000`.
+
+---
+
+## Testing
+
+### Run Unit Tests
+
+1. **Backend**:
+   ```bash
+   cd backend
+   npm test
+   ```
+
+2. **Frontend**:
+   ```bash
+   cd frontend
+   npm test
+   ```
+
